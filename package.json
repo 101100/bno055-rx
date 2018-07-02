@@ -1,0 +1,55 @@
+{
+  "name": "bno055-rx",
+  "version": "2.0.0",
+  "description": "Library for BNO055 I2C absolute orientation sensor",
+  "author": {
+    "name": "Jason Heard",
+    "email": "jasonpheard@gmail.com"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "keywords": [
+    "bno055",
+    "i2c",
+    "compass",
+    "magnometer",
+    "gyroscope",
+    "accelerometer",
+    "quaternion",
+    "adafruit",
+    "raspberrypi",
+    "beaglebone"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/101100/bno055-rx"
+  },
+  "bugs": {
+    "url": "https://github.com/101100/bno055-rx/issues"
+  },
+  "scripts": {
+    "build": "npm run lint && tsc",
+    "lint": "tslint --project tsconfig.json index.ts src/*.ts examples/*.ts",
+    "prepublish": "npm run build"
+  },
+  "engines": {
+    "node": ">= 0.10.0"
+  },
+  "devDependencies": {
+    "i2c-bus": "^3.2",
+    "printf": "^0.3",
+    "tslint": "^5.10",
+    "typescript": "^2.9"
+  },
+  "dependencies": {
+    "@types/debug": "^0.0.30",
+    "@types/i2c-bus": "^1.0.18",
+    "debug": "^3.1",
+    "es6-promise": "^4.1",
+    "rxjs": "^6.2"
+  },
+  "directories": {
+    "example": "examples"
+  }
+}
