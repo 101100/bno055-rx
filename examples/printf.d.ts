@@ -13,6 +13,8 @@ declare module "printf" {
      * @param {any[]} formatArguments
      *     The arguments to be used in the format string.
      */
-    export default function printf(formatString: string, ...formatArguments: any[]): string;
+    function printf(formatString: string, ...formatArguments: any[]): string;
+
+    export = printf;
 
 }

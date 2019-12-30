@@ -76,6 +76,8 @@ export class Bno055Driver {
         const i2cObject = options.i2c;
         const address = options.address || constants.ADDRESS_A;
 
+        this._debug(`Address is 0x${address.toString(16)}`);
+
         this._readByte = function (register: number): Observable<number> {
             return new Observable<number>(subscriber => {
                 i2cObject.readByte(address, register, (err, byte) => {
@@ -126,7 +128,8 @@ export class Bno055Driver {
     getCalibrationData(): Observable<Bno055CalibrationData> {
         return concatObservable(
             this._preCalibrationInitializationStream,
-            this._calibrationDataStream
+            this._awaitCalibration(),
+            this._readCalibration()
         );
     }
 
@@ -180,22 +183,21 @@ export class Bno055Driver {
             .pipe(
                 mergeMap(_ => this._readByte(constants.CALIB_STAT)), // read the calibration byte
                 takeWhile(byte => (byte & bitsToCheck) !== bitsToCheck), // finish when the bits to check are set
-                ignoreElements(),
-                tap(undefined, undefined, () => {
-                    if (this._debug.enabled) {
-                        this._debug(`Calibration complete: ${name}`);
-                    }
-                })
+                tap(undefined, undefined, () => this._debug(`Calibration complete: ${name}`)),
+                ignoreElements()
             );
     }
 
 
     private _awaitCalibration(): Observable<never> {
-        return mergeObservable(
-            this._awaitCalibrationPart(0x03, "magnetometer"),
-            this._awaitCalibrationPart(0x0C, "accelerometer"),
-            this._awaitCalibrationPart(0x30, "gyroscope"),
-            this._awaitCalibrationPart(0xC0, "system")
+        return concatObservable(
+            this._setMode("ndof_fmc_off"),
+            mergeObservable(
+                this._awaitCalibrationPart(0x03, "magnetometer"),
+                this._awaitCalibrationPart(0x0C, "accelerometer"),
+                this._awaitCalibrationPart(0x30, "gyroscope"),
+                this._awaitCalibrationPart(0xC0, "system")
+            )
         );
     }
 
@@ -203,11 +205,14 @@ export class Bno055Driver {
     private _confirmBoot(): Observable<never> {
         return timerObservable(0, 100) // try every 100 ms
             .pipe(
+                tap(() => this._debug("Reading ID byte to confirm boot")),
                 mergeMap(_ => this._readByte(constants.CHIP_ID)), // read the ID byte
+                tap(idByte => this._debug(`Read ID byte of 0x${idByte.toString(16)}`)),
                 takeWhile(byte => byte !== constants.BNO055_ID), // finish when correct ID is read
                 ignoreElements(), // don't output non-ID values
-                timeout(1000), // give up after 1000 ms
-                catchError(_ => throwObservable("Could not confirm the Bno055 module ID."))
+                tap(undefined, undefined, () => this._debug("Boot confirmation done."))
+                // timeout(10000) // give up after 1000 ms
+                // catchError(_ => throwObservable("Could not confirm the Bno055 module ID."))
             );
     }
 
@@ -215,7 +220,8 @@ export class Bno055Driver {
     private _confirmSelfTest(): Observable<never> {
         return this._readByte(constants.SELFTEST_RESULT)
             .pipe(
-                mergeMap(byte => (byte & 0xF) === 0xF ? emptyObservable() : throwObservable(`Self test failed, got ${byte}.`))
+                tap(selfTestResult => this._debug(`Self test result is 0x${selfTestResult.toString(16)}`)),
+                mergeMap(byte => (byte & 0xF) === 0xF ? emptyObservable() : throwObservable(`Self test failed, got 0x${byte.toString(16)}.`))
             );
     }
 
@@ -233,6 +239,7 @@ export class Bno055Driver {
     private _ensurePage(page: 0 | 1): Observable<never> {
         return this._readByte(constants.PAGE_ID)
             .pipe(
+                tap(pageId => this._debug(`Page ID is 0x${pageId.toString(16)}`)),
                 mergeMap(byte => byte === page ? emptyObservable() : this._writeByte(constants.PAGE_ID, page))
             );
     }
@@ -286,12 +293,17 @@ export class Bno055Driver {
 
 
     private _reset(): Observable<never> {
-        return this._writeByte(constants.SYS_TRIGGER, constants.SYSTEM_TRIGGER_RESET);
+        return concatObservable(
+            this._writeByte(constants.SYS_TRIGGER, constants.SYSTEM_TRIGGER_RESET),
+            this._delay(1000)
+        ).pipe(
+            tap(undefined, undefined, () => { this._debug("Initiated reset"); })
+        );
         // reset reset register to zero?!?
     }
 
 
-    private _readCalibration(): Observable<never> {
+    private _readCalibration(): Observable<Bno055CalibrationData> {
         return zipObservable(
             this._readVector(constants.ACCEL_OFFSET_START, 1, "accelerometer offset"),
             this._readNumber(constants.ACCEL_RADIUS_LSB, "accelerometer radius"),
@@ -301,12 +313,7 @@ export class Bno055Driver {
         ).pipe(
             take(1),
             map(([accelerometerOffset, accelerometerRadius, gyroscopeOffset, magnetometerOffset, magnetometerRadius]) =>
-                ({ accelerometerOffset, accelerometerRadius, gyroscopeOffset, magnetometerOffset, magnetometerRadius })),
-            tap(calibrationData => {
-                this._calibrationDataStream.next(calibrationData);
-                this._calibrationDataStream.complete();
-            }),
-            ignoreElements()
+                ({ accelerometerOffset, accelerometerRadius, gyroscopeOffset, magnetometerOffset, magnetometerRadius }))
         );
     }
 
@@ -369,22 +376,16 @@ export class Bno055Driver {
         return concatObservable(
             this._writeByte(constants.OPR_MODE, modeValue),
             this._delay(30)
-        );
+        ).pipe(tap(undefined, undefined, () => this._debug(`Set mode to ${mode} with byte 0x${modeValue.toString(16)}`)));
     }
 
 
     private _setOrAwaitCalibrationData(calibrationData?: Bno055CalibrationData): Observable<never> {
         if (calibrationData) {
-            this._calibrationDataStream.next(calibrationData);
-            this._calibrationDataStream.complete();
             return this._writeCalibrationData(calibrationData);
         } else {
             // wait for calibration state to be correct
-            // save calibrationData for retrieval
-            return concatObservable(
-                this._awaitCalibration(),
-                this._readCalibration()
-            );
+            return this._awaitCalibration();
         }
     }
 

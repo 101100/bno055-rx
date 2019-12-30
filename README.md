@@ -1,8 +1,8 @@
-## Library for the BNO055 I2C absolute orientation sensor
+## Node.js library for BNO055 I2C absolute orientation sensor
 
 [![NPM version](https://badge.fury.io/js/bno055-rx.svg)](http://badge.fury.io/js/bno055-rx)
 
-This is an npm module that creates [Rx.JS](https://github.com/Reactive-Extensions/RxJS)
+This is an npm module that creates [RxJS](https://github.com/reactivex/rxjs)
 streams of readings from the BNO055 I2C absolute orientation sensor.
 Information on the BNO055 can be found
 [here](https://www.bosch-sensortec.com/bst/products/all_products/bno055)

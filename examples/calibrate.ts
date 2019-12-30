@@ -16,8 +16,8 @@ import { Bno055Driver } from "../index";
 
 const bno055 = new Bno055Driver({
     // uncomment for debugging information
-    // debug: true,
-    i2c: i2cBus.openSync(1),
+    debug: true,
+    i2c: i2cBus.openSync(18),
     mode: "ndof"
 });
 

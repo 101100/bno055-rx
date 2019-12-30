@@ -1,8 +1,8 @@
 /*
- * examples/accelerometer.ts
+ * examples/quaternion.ts
  * https://github.com/101100/bno055-rx
  *
- * Example to stream accelerometer values.
+ * Example to stream quaternion values.
  *
  * Copyright (c) 2018 Jason Heard
  * Licensed under the MIT license.
@@ -18,9 +18,9 @@ import { Bno055Driver } from "../index";
 
 const bno055 = new Bno055Driver({
     // uncomment for debugging information
-    debug: true,
+    // debug: true,
     i2c: i2cBus.openSync(18),
-    mode: "acconly",
+    mode: "ndof",
     // replace with calibration data for accurate results
     calibrationData: {
         accelerometerOffset: { x: 0, y: 0, z: 0 },
@@ -32,13 +32,13 @@ const bno055 = new Bno055Driver({
 });
 
 
-console.log("Reading 50 accelerometer values (once initialization is complete)...");
-bno055.streamAccelerometer()
+console.log("Reading 50 quaternion values (once initialization is complete)...");
+bno055.streamQuaternions()
     .pipe(
         take(50)
     )
     .subscribe(
-        next => console.log(printf("x: % 6.2f, y: % 6.2f, z: % 6.2f", next.x, next.y, next.z)),
+        next => console.log(printf("w: % 6.2f, x: % 6.2f, y: % 6.2f, z: % 6.2f", next.w, next.x, next.y, next.z)),
         (err: any) => console.log("Error: " + err),
         () => console.log("Completed")
     );
